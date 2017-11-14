@@ -69,7 +69,89 @@ class collection {
 class accounts extends collection {
     protected static $modelName = 'account';
 }
-// // this would be the method to put in the index page for accounts
+
+
+
+class model {
+    protected $tableName;
+    public function save()
+    {
+
+$array = get_object_vars($this);
+        print_r($array);
+
+        if ($this->id == '') {
+
+            $sql = $this->insert();
+        } else {
+             $sql = $this->update();
+        }
+        $db = dbConn::getConnection();
+        print_r($sql);
+        $statement = $db->prepare($sql);
+        $statement->execute();
+        
+        
+        
+       // echo "INSERT INTO $tableName (" . $columnString . ") VALUES (" . $valueString . ")</br>";
+        echo 'I just saved record: ' . $this->id;
+    }
+    private function insert() {
+        //$tableName = get_called_class();
+        $array = get_object_vars($this);
+        $columnString = implode(',', $array);
+        $valueString = ":".implode(',:', $array);
+        $sql = "INSERT INTO $tableName (" . $columnString . ") VALUES (" . $valueString . ")";
+        return $sql;
+    }
+    private function update() {
+        //$tableName = get_called_class();
+        $array = get_object_vars($this);
+        print_r($array);
+        $counter=0;
+        foreach ($array as $key=>$value){
+            if($key=='id'){
+                print_r($value);
+                $condition = "$key = $value";
+                print_r($condition);
+            }
+            else{
+                if($value!=''&&$key!='tableName'){
+            $stmt[$counter] = "$key = '$value'";
+            $counter++;
+        }
+        }
+        
+    }
+    $stmtString = implode(',',$stmt);
+    $sql = "UPDATE $this->tableName SET ". $stmtString." WHERE ". $condition ;
+        return $sql;
+        echo 'I just updated record' . $this->id;
+    }
+    public function delete() {
+        echo 'I just deleted record' . $this->id;
+    }
+}
+
+class account extends model {
+
+    public $id;
+    public $email;
+    public $fname;
+    public $lname;
+    public $phone;
+    public $birthday;
+    public $gender;
+    public $password;
+
+    public function __construct()
+    {
+        $this->tableName = 'accounts';
+
+}
+}
+
+
 
 echo "<b> Find all </b> <br>";
 $records = accounts::findAll();
@@ -77,6 +159,12 @@ print_r($records);
 echo "<b> Find one </b> <br>";
 $record = accounts::findOne(11);
 print_r($record);
+echo "<b> Insert Record </b><br>";
+$newRec = new account();
+$newRec->email="vkv@gmail.com";
+$newRec->id=13;
+$newRec->save();
+
 
 
 ?>
