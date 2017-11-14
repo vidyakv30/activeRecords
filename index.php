@@ -45,6 +45,7 @@ class collection {
     public static function findAll() {
         $db = dbConn::getConnection();
         $tableName = get_called_class();
+        echo "<b> Find all </b> <br>";
         $sql = 'SELECT * FROM ' . $tableName;
         $statement = $db->prepare($sql);
         $statement->execute();
@@ -57,6 +58,7 @@ class collection {
     static public function findOne($id) {
         $db = dbConn::getConnection();
         $tableName = get_called_class();
+        echo "<b> Find one </b><br>";
         $sql = 'SELECT * FROM ' . $tableName . ' WHERE id =' . $id;
         $statement = $db->prepare($sql);
         $statement->execute();
@@ -78,8 +80,7 @@ class model {
     {
 
 $array = get_object_vars($this);
-        print_r($array);
-
+       
         if ($this->id == '') {
 
             $sql = $this->insert();
@@ -87,7 +88,6 @@ $array = get_object_vars($this);
              $sql = $this->update();
         }
         $db = dbConn::getConnection();
-        print_r($sql);
         $statement = $db->prepare($sql);
         $statement->execute();
         
@@ -107,13 +107,13 @@ $array = get_object_vars($this);
     private function update() {
         //$tableName = get_called_class();
         $array = get_object_vars($this);
-        print_r($array);
         $counter=0;
         foreach ($array as $key=>$value){
             if($key=='id'){
-                print_r($value);
+                
                 $condition = "$key = $value";
-                print_r($condition);
+              
+
             }
             else{
                 if($value!=''&&$key!='tableName'){
@@ -124,13 +124,12 @@ $array = get_object_vars($this);
         
     }
     $stmtString = implode(',',$stmt);
+    echo "<b><br>Update Record </b><br>";
     $sql = "UPDATE $this->tableName SET ". $stmtString." WHERE ". $condition ;
         return $sql;
         echo 'I just updated record' . $this->id;
     }
-    public function delete() {
-        echo 'I just deleted record' . $this->id;
-    }
+    
 }
 
 class account extends model {
@@ -153,18 +152,15 @@ class account extends model {
 
 
 
-echo "<b> Find all </b> <br>";
+
 $records = accounts::findAll();
 print_r($records);
-echo "<b> Find one </b> <br>";
 $record = accounts::findOne(11);
 print_r($record);
-echo "<b> Insert Record </b><br>";
+
 $newRec = new account();
 $newRec->email="vkv@gmail.com";
 $newRec->id=13;
 $newRec->save();
-
-
 
 ?>
