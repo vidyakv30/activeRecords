@@ -1,136 +1,144 @@
 <?php
-//turn on debugging messages
+
 ini_set('display_errors', 'On');
 error_reporting(E_ALL);
-
-define('DATABASE', 'vk427');
-define('USERNAME', 'vk427');
-define('PASSWORD', 'R0adrunner');
-define('CONNECTION', 'sql1.njit.edu');
+echo '<link rel="stylesheet" href="styles.css" type="text/css">';
+define ('DATABASE', 'vk427');
+define ('USERNAME', 'vk427');
+define ('PASSWORD', 'R0adrunner');
+define ('CONNECTION', 'sql1.njit.edu');
 
 class dbConn{
-    //variable to hold connection object.
-    protected static $db;
-    //private construct - class cannot be instatiated externally.
-    private function __construct() {
-        try {
-            // assign PDO object to db variable
-            self::$db = new PDO( 'mysql:host=' . CONNECTION .';dbname=' . DATABASE, USERNAME, PASSWORD );
-            self::$db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
-            echo "Connected Succesfully <br>";
-        }
-        catch (PDOException $e) {
-            //Output error - would normally log this to error file rather than output to user.
-            echo "Connection Error: " . $e->getMessage();
-        }
-    }
-    // get connection function. Static method - accessible without instantiation
-    public static function getConnection() {
-        //Guarantees single instance, if no connection object exists then create one.
-        if (!self::$db) {
-            //new connection object.
-            new dbConn();
-        }
-        //return connection.
-        return self::$db;
-    }
+
+	protected static $db;
+
+	private function __construct(){
+
+		try{
+			self::$db= new PDO('mysql:host=' . CONNECTION .';dbname=' . DATABASE, USERNAME, PASSWORD );
+			self::$db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
+			echo "<b>Connected Succesfully </b><br>";
+
+		}
+
+		catch (PDOException $e){
+			echo "Connection Error: " . $e->getMessage();
+
+		}
+	}
+
+	public static function getConnection(){
+
+		if(!self::$db){
+			new dbConn();
+		}
+		return self::$db;
+
+	}
 }
-class collection {
-     private static $recordsSet;
-    
-    public static function create() {
-      $model = new static::$modelName;
-      return self::$model;
-    }
-    public static function findAll() {
-        $db = dbConn::getConnection();
-        $tableName = get_called_class();
-        echo "<b> Find all </b> <br>";
-        $sql = 'SELECT * FROM ' . $tableName;
-        $statement = $db->prepare($sql);
-        $statement->execute();
-        $class = static::$modelName;
-        $statement->setFetchMode(PDO::FETCH_CLASS, $class);
-        self::$recordsSet =  $statement->fetchAll();
-        return self::$recordsSet;
+
+abstract class collection{
+
+	public static $record;
+
+	    public static function create() {
+    		  $model = new static::$modelName;
+    		  return $model;
     }
 
-    static public function findOne($id) {
-        $db = dbConn::getConnection();
-        $tableName = get_called_class();
-        echo "<b> Find one </b><br>";
-        $sql = 'SELECT * FROM ' . $tableName . ' WHERE id =' . $id;
-        $statement = $db->prepare($sql);
-        $statement->execute();
-        $class = static::$modelName;
-        $statement->setFetchMode(PDO::FETCH_CLASS, $class);
-        $recordsSet =  $statement->fetchAll();
-        return $recordsSet[0];
-    }
+		public static function getRecordSet(){
+		$db = dbConn::getConnection();
+		$tableName = get_called_class();
+		$sql = "SELECT * from ". $tableName;
+		$statement = $db->prepare ($sql);
+		$statement->execute();
+		$class = static::$modelName;
+		$statement->setFetchMode(PDO::FETCH_CLASS, $class);
+        $recordSet =  $statement->fetchAll();
+        return $recordSet;
+	}
+
+
+     
+
+    	public static function getOneRecord($id){
+		$db = dbConn::getConnection();
+		$tableName = get_called_class();
+		$sql = "SELECT * from ". $tableName . " WHERE id = $id";
+		$statement = $db->prepare ($sql);
+		$statement->execute();
+		$class = static::$modelName;
+		$statement->setFetchMode(PDO::FETCH_CLASS, $class);
+        $record =  $statement->fetchAll();
+        return $record;
+	}
 }
+
+
 class accounts extends collection {
     protected static $modelName = 'account';
 }
 
+class todos extends collection {
+    protected static $modelName = 'todo';
+}
 
 
 class model {
-    protected $tableName;
-    public function save()
-    {
 
-$array = get_object_vars($this);
-       
+	protected $tableName;
+	protected static $statement;
+    
+    public function save()
+   		 {
+
+		$array = get_object_vars($this);
+
+    	unset($array["tableName"]);
+    		     
         if ($this->id == '') {
 
+            echo "Call Insert Method <br>";
             $sql = $this->insert();
+            
         } else {
              $sql = $this->update();
         }
         $db = dbConn::getConnection();
-        $statement = $db->prepare($sql);
-        $statement->execute();
-        
-        
-        
-       // echo "INSERT INTO $tableName (" . $columnString . ") VALUES (" . $valueString . ")</br>";
-        echo 'I just saved record: ' . $this->id;
+        self::$statement = $db->prepare($sql);
+        foreach ($array as $key=>$value)
+        {
+         self::$statement->bindValue(":$key","$value");
+        }
+         self::$statement->execute();
+    
     }
-    private function insert() {
-        //$tableName = get_called_class();
-        $array = get_object_vars($this);
-        $columnString = implode(',', $array);
-        $valueString = ":".implode(',:', $array);
-        $sql = "INSERT INTO $tableName (" . $columnString . ") VALUES (" . $valueString . ")";
-        return $sql;
-    }
-    private function update() {
-        //$tableName = get_called_class();
-        $array = get_object_vars($this);
-        $counter=0;
-        foreach ($array as $key=>$value){
-            if($key=='id'){
-                
-                $condition = "$key = $value";
-              
 
-            }
-            else{
-                if($value!=''&&$key!='tableName'){
-            $stmt[$counter] = "$key = '$value'";
-            $counter++;
-        }
-        }
+    public function insert()
+    {   $array = get_object_vars($this);
+
         
-    }
-    $stmtString = implode(',',$stmt);
-    echo "<b><br>Update Record </b><br>";
-    $sql = "UPDATE $this->tableName SET ". $stmtString." WHERE ". $condition ;
-        return $sql;
-        echo 'I just updated record' . $this->id;
-    }
+    	foreach ($array as $key => $value)
+    	{    
+    		if ($key=="tableName")
+    		{   
+    			unset($array["tableName"]);
+    		}
+    	}
+    	       
+ 	   $columnString = implode(',', array_keys($array));
+ 	   echo "<br> $columnString<br>";
+       $valueString = ":".implode(',:', array_keys($array));
+       echo "<br>$valueString<br>";
+       $sql = "INSERT INTO $this->tableName (" . $columnString . ") VALUES (" . $valueString . ")";
+       print_r($sql);
+       return $sql;
+    		
+    	}	  
+
     
 }
+
 
 class account extends model {
 
@@ -151,16 +159,93 @@ class account extends model {
 }
 
 
+class todo extends model {
+
+    public $id;
+    public $owneremail;
+    public $ownerid;
+    public $createdate;
+    public $duedate;
+    public $message;
+    public $isdone;
+    
+    public function __construct()
+    {
+        $this->tableName = 'todos';
+
+}
+}
 
 
-$records = accounts::findAll();
-print_r($records);
-$record = accounts::findOne(11);
-print_r($record);
+
+
+class tableClass{
+
+	private static $table;
+
+	public static function checkRecord ($rec){
+		if(count($rec) == 0){
+			$printTable = "No records returned <br>";
+		}
+		else {
+          
+          $printTable = self::drawTable($rec);
+          
+		}
+		return $printTable;
+
+	}
+
+	public static function drawTable($rec){
+
+		self::$table.= '<table>';
+		self::$table.= '<tr>';
+		$headerFields = $rec[0];
+		foreach ($headerFields as $key => $value) {
+                self::$table .= "<th>$key</th>";
+
+            }
+        self::$table.= '</tr>';
+        foreach ($rec as $record){
+        	self::$table.= '<tr>';
+
+        	foreach($record as $key => $value){
+        		self::$table.= "<td>$value</td>";
+
+        	}
+        	self::$table .= '</tr>';
+
+
+        }
+
+        self::$table .= '</table> <br>';
+        return self::$table;
+
+	}
+
+
+	
+}
+
+$record= accounts::getRecordSet();
+$record = tableClass::checkRecord($record);
+$record = accounts::getOneRecord(10);
+$record = tableClass::checkRecord($record);
+$record= todos::getRecordSet();
+$record = tableClass::checkRecord($record);
+$record= todos::getOneRecord(5);
+$record = tableClass::checkRecord($record);
+echo ($record);
 
 $newRec = new account();
 $newRec->email="vkv@gmail.com";
-$newRec->id=13;
+$newRec->fname="James";
+$newRec->lname="Bond";
+$newRec->phone='007';
+$newRec->birthday='01011955';
+$newRec->gender='male';
+$newRec->password='001';
 $newRec->save();
+echo " Inserted record into table";
 
 ?>
