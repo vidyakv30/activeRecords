@@ -59,8 +59,7 @@ abstract class collection{
 	}
 
 
-     
-
+   
     	public static function getOneRecord($id){
 		$db = dbConn::getConnection();
 		$tableName = get_called_class();
@@ -84,16 +83,14 @@ class todos extends collection {
 }
 
 
-class model {
+abstract class model {
 
 	protected $tableName;
 	protected static $statement;
     
     public function save()
    		 {
-
 		$array = get_object_vars($this);
-
     	unset($array["tableName"]);
     		     
         if ($this->id == '') {
@@ -104,39 +101,69 @@ class model {
         } else {
              $sql = $this->update();
         }
+
         $db = dbConn::getConnection();
         self::$statement = $db->prepare($sql);
+     
         foreach ($array as $key=>$value)
         {
-         self::$statement->bindValue(":$key","$value");
+         if ($this->id == ''){
+           self::$statement->bindValue(":$key","$value");
+         }
+         else {
+            if ($value != '' && $key != "id"){
+                self::$statement->bindValue(":$key","$value");
+            }
+         }
         }
+
          self::$statement->execute();
+         $lastId = $db->lastInsertId();
+         return ($lastId);
     
     }
 
     public function insert()
     {   $array = get_object_vars($this);
-
+    
+       unset($array["tableName"]);
         
-    	foreach ($array as $key => $value)
-    	{    
-    		if ($key=="tableName")
-    		{   
-    			unset($array["tableName"]);
-    		}
-    	}
-    	       
  	   $columnString = implode(',', array_keys($array));
- 	   echo "<br> $columnString<br>";
-       $valueString = ":".implode(',:', array_keys($array));
-       echo "<br>$valueString<br>";
+ 	   $valueString = ":".implode(',:', array_keys($array));
        $sql = "INSERT INTO $this->tableName (" . $columnString . ") VALUES (" . $valueString . ")";
        print_r($sql);
-       return $sql;
-    		
-    	}	  
+       return $sql;		
+    	}	
 
+
+     public function update()
+    {
+      $array = get_object_vars($this);
     
+       unset($array["tableName"]);
+
+       $sql = "UPDATE ". $this->tableName ." SET";
+       foreach ($array as $key => $value){
+        if ($value != "" & $key != "id")
+        {
+
+        $sql.= " " .$key ." = :$key ,";
+        //$values[":$key"] = $value;
+       }
+ 
+       } 
+
+       $sql = substr($sql,0,-1);
+
+       $sql.= " WHERE id = " .$this->id;
+
+       echo $sql;
+       return $sql; 
+
+    }
+
+
+     
 }
 
 
@@ -175,9 +202,6 @@ class todo extends model {
 
 }
 }
-
-
-
 
 class tableClass{
 
@@ -245,7 +269,15 @@ $newRec->phone='007';
 $newRec->birthday='01011955';
 $newRec->gender='male';
 $newRec->password='001';
-$newRec->save();
-echo " Inserted record into table";
+$newID = $newRec->save();
+echo " <br> <b> Inserted record into table</b> <br> ";
+
+ $updateRec = new account();
+ $updateRec->id = $newID;
+ $updateRec->email="bond007@gmail.com";
+ $updateId = $updateRec->save();
+ echo " <br> <b> Updated record into table </b> <br> ";
+
+
 
 ?>
