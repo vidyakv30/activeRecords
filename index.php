@@ -19,8 +19,7 @@
             try {
                 self::$db = new PDO('mysql:host=' . CONNECTION . ';dbname=' . DATABASE, USERNAME, PASSWORD);
                 self::$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                echo "<b> Database Connection Succesful </b><br>";
-
+                
             } catch (PDOException $e) {
                 echo "Connection Error: " . $e->getMessage();
 
