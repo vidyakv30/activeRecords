@@ -38,9 +38,14 @@ class dbConn
     }
 }
 
+/* 
+*Abstrcat class  to select record(s) from a table
+*/
 abstract class collection
 {
-
+/*
+* Method to retrieve records in a table
+*/
     public static function getRecordSet()
     {
         $db        = dbConn::getConnection();
@@ -53,6 +58,9 @@ abstract class collection
         $recordSet = $statement->fetchAll();
         return $recordSet;
     }
+    /* 
+    * Method to retrieve one record from table using ID
+    */
 
     public static function getOneRecord($id)
     {
@@ -78,11 +86,17 @@ class todos extends collection
     protected static $modelName = 'todo';
 }
 
+/* 
+*Abstract class model to perform INSERT,UPDATE & DELETE operations in a table
+*/
 abstract class model
 {
 
     protected $tableName;
     protected static $statement;
+    /* 
+    * Method to INSERT or UPDATE a record into the table 
+    */
 
     public function save()
     {
@@ -99,16 +113,8 @@ abstract class model
 
         $db = dbConn::getConnection();
         self::$statement = $db->prepare($sql);
-
-        foreach ($array as $key => $value) {
-            if ($this->id == '') {
-                self::$statement->bindValue(":$key", "$value");
-            } else {
-                if ($value != '' && $key != "id") {
-                    self::$statement->bindValue(":$key", "$value");
-                }
-            }
-        }
+       
+        self::bindValues($array,$this);        
 
         self::$statement->execute();
 
@@ -116,6 +122,25 @@ abstract class model
         return ($lastId);
 
     }
+
+/*
+* Method to bind the values
+*/
+    private static function bindValues($array,$obj){
+        foreach ($array as $key => $value) {
+            if ($obj->id == '') {
+                self::$statement->bindValue(":$key", "$value");
+            } else {
+                if ($value != '' && $key != "id") {
+                    self::$statement->bindValue(":$key", "$value");
+                }
+            }
+        }
+    }
+
+/*
+* Method to prepare the insert query
+*/
 
     public function insert()
     {
@@ -129,6 +154,10 @@ abstract class model
         return $sql;
 
     }
+
+ /*
+* Method to prepare the update query
+*/
 
     public function update()
     {
@@ -151,6 +180,10 @@ abstract class model
         return $sql;
 
     }
+
+/*
+* Method to delete a record 
+*/
 
     public function delete()
     {
@@ -201,11 +234,18 @@ class todo extends model
     }
 }
 
+
+/*
+* Class to prepare HTML table definition
+*/
 class tableClass
 {
 
     private static $table;
-
+ 
+ /*
+* Method to select the action to be performed based on the count
+*/
     public static function populateTable($rec)
     {
         self::$table = "";
@@ -219,7 +259,9 @@ class tableClass
         return self::$table;
 
     }
-
+ /*
+* Method to  create the HTML table
+*/
     private static function drawTable($rec)
     {
 
@@ -248,6 +290,9 @@ class tableClass
 
 }
 
+ /*
+* Template Class  to output  the results
+*/
 class output
 {
     private $header;
@@ -261,6 +306,10 @@ class output
         echo "$this->table";
         echo ("<hr>");
     }
+
+/*
+* Method to generate the table based on the action performed and the resulting data.
+*/
     public function templateGenerator($action, $messageVar, $tableData)
     {
         $this->table = $tableData;
@@ -302,9 +351,15 @@ class output
 
     }
 }
-echo "<h1>'accounts' Table</h1>";
-$outputArray = array();
 
+
+$outputArray = array();
+echo "<h1>'accounts' Table</h1>";
+
+
+ /*
+* Method Calls to perform CRUD operations on accounts table
+*/
 $records   = accounts::getRecordSet();
 $outputVar = new output();
 $outputVar->templateGenerator("SELECTALL", $records, tableClass::populateTable($records));
@@ -354,8 +409,17 @@ array_push($outputArray, $outputVar);
 foreach ($outputArray as $output) {
     $output->printResults();
 }
+
+/*
+* Resetting the output array to perform operation on todos table
+*/
+
 $outputArray = array();
 echo "<h1>'todos' Table</h1>";
+
+ /*
+* Method Calls to perform CRUD operations on accounts table
+*/
 
 $todoRecords = todos::getRecordSet();
 $outputVar   = new output();
