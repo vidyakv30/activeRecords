@@ -41,11 +41,7 @@ abstract class collection{
 
 	public static $record;
 
-	    public static function create() {
-    		  $model = new static::$modelName;
-    		  return $model;
-    }
-
+	
 		public static function getRecordSet(){
 		$db = dbConn::getConnection();
 		$tableName = get_called_class();
@@ -55,6 +51,7 @@ abstract class collection{
 		$class = static::$modelName;
 		$statement->setFetchMode(PDO::FETCH_CLASS, $class);
         $recordSet =  $statement->fetchAll();
+        //print_r($recordSet);
         return $recordSet;
 	}
 
@@ -95,11 +92,13 @@ abstract class model {
     		     
         if ($this->id == '') {
 
-            echo "Call Insert Method <br>";
+            // echo "Call Insert Method <br>";
             $sql = $this->insert();
-            
+            // echo " <br> Inserted record into table " . $this->tableName; 
         } else {
              $sql = $this->update();
+              // echo "<br> Updated record in table " . $this->tableName ." with ID = " . $this->id;
+
         }
 
         $db = dbConn::getConnection();
@@ -118,6 +117,7 @@ abstract class model {
         }
 
          self::$statement->execute();
+        
          $lastId = $db->lastInsertId();
          return ($lastId);
     
@@ -133,6 +133,7 @@ abstract class model {
        $sql = "INSERT INTO $this->tableName (" . $columnString . ") VALUES (" . $valueString . ")";
        print_r($sql);
        return $sql;		
+       
     	}	
 
 
@@ -159,7 +160,21 @@ abstract class model {
 
        echo $sql;
        return $sql; 
+       
+    }
 
+
+    public function delete()
+    
+    {    $array = get_object_vars($this);
+        $sql = "DELETE FROM " . $this->tableName . " WHERE id = " . $this->id;
+        //echo $sql;
+        $db = dbConn::getConnection();
+        self::$statement = $db->prepare($sql);
+        self::$statement->execute();
+       //echo "<br> <b> Record Deleted <b> <br>";
+
+       // return $sql;
     }
 
 
@@ -182,7 +197,8 @@ class account extends model {
     {
         $this->tableName = 'accounts';
 
-}
+    }
+
 }
 
 
@@ -207,20 +223,25 @@ class tableClass{
 
 	private static $table;
 
-	public static function checkRecord ($rec){
+    public static function getTable(){
+        return self::$table;
+    }
+
+	public static function populateTable ($rec){
+        self::$table ="";
 		if(count($rec) == 0){
-			$printTable = "No records returned <br>";
+			self::$table.= "<b> No records returned from table <b> <br>";
 		}
 		else {
           
-          $printTable = self::drawTable($rec);
+          self::drawTable($rec);
           
 		}
-		return $printTable;
+		//return $printTable;
 
 	}
 
-	public static function drawTable($rec){
+	private static function drawTable($rec){
 
 		self::$table.= '<table>';
 		self::$table.= '<tr>';
@@ -243,23 +264,43 @@ class tableClass{
         }
 
         self::$table .= '</table> <br>';
-        return self::$table;
+        //return self::$table;
 
 	}
-
-
 	
 }
 
+class output{
+  public $header;
+  public $message;
+  public $table;  
+
+  public function printResults(){
+    echo "<h2> $this->header </h2>";
+    echo "$this->message <br>";
+    echo "$this->table";
+    echo ("<hr>");
+  }
+}
+
+$outputArray = array();
+
 $record= accounts::getRecordSet();
-$record = tableClass::checkRecord($record);
-$record = accounts::getOneRecord(10);
-$record = tableClass::checkRecord($record);
-$record= todos::getRecordSet();
-$record = tableClass::checkRecord($record);
-$record= todos::getOneRecord(5);
-$record = tableClass::checkRecord($record);
-echo ($record);
+tableClass::populateTable($record);
+$outputVar = new output();
+$outputVar->header = "Select ALL records";
+$outputVar->message = "Select ALL records";
+$outputVar->table = tableClass::getTable();
+array_push($outputArray,$outputVar);
+
+$id = 11;
+$record = accounts::getOneRecord($id);
+tableClass::populateTable($record);
+$outputVar = new output();
+$outputVar->header = "Select One Record";
+$outputVar->message = "Select record with id: $id";
+$outputVar->table = tableClass::getTable();
+array_push($outputArray,$outputVar);
 
 $newRec = new account();
 $newRec->email="vkv@gmail.com";
@@ -270,14 +311,65 @@ $newRec->birthday='01011955';
 $newRec->gender='male';
 $newRec->password='001';
 $newID = $newRec->save();
-echo " <br> <b> Inserted record into table</b> <br> ";
+
+$record= accounts::getRecordSet();
+tableClass::populateTable($record);
+$outputVar = new output();
+$outputVar->header = "Insert New Record ";
+$outputVar->message = "New Record data Email = $newRec->email, fname = $newRec->fname lname= $newRec->lname phone = $newRec->phone birthday = $newRec->birthday gender = $newRec->gender password = $newRec->password ";
+$outputVar->table = tableClass::getTable();
+array_push($outputArray,$outputVar);
 
  $updateRec = new account();
  $updateRec->id = $newID;
  $updateRec->email="bond007@gmail.com";
  $updateId = $updateRec->save();
- echo " <br> <b> Updated record into table </b> <br> ";
 
+ $record= accounts::getRecordSet();
+tableClass::populateTable($record);
+$outputVar = new output();
+$outputVar->header = "Update Record ";
+$outputVar->message = "Updated record with id = $upateID";
+$outputVar->table = tableClass::getTable();
+array_push($outputArray,$outputVar);
+
+$deleteRec = new account();
+$deleteRec->id = $newID;
+$deleteId = $deleteRec->delete();
+
+$record= accounts::getRecordSet();
+tableClass::populateTable($record);
+$outputVar = new output();
+$outputVar->header = "Delete Record ";
+$outputVar->message = "Deleted record with id = $newID";
+$outputVar->table = tableClass::getTable();
+array_push($outputArray,$outputVar);
+
+
+
+
+foreach($outputArray as $output){
+    $output->printResults();
+}
+
+// print_r($outputArray);
+//$outputVar->printResults();
+
+
+// $record = accounts::getOneRecord(114);
+// tableClass::populateTable($record);
+// $record= todos::getRecordSet();
+// tableClass::populateTable($record);
+// $record= todos::getOneRecord(5);
+// tableClass::populateTable($record);
+// echo (tableClass::getTable());
+
+
+ 
+ 
+ $deleteRec = new account();
+ $deleteRec->id = $newID;
+ $deleteId = $deleteRec->delete();
 
 
 ?>
