@@ -3,186 +3,168 @@
 ini_set('display_errors', 'On');
 error_reporting(E_ALL);
 echo '<link rel="stylesheet" href="styles.css" type="text/css">';
-define ('DATABASE', 'vk427');
-define ('USERNAME', 'vk427');
-define ('PASSWORD', 'R0adrunner');
-define ('CONNECTION', 'sql1.njit.edu');
+define('DATABASE', 'vk427');
+define('USERNAME', 'vk427');
+define('PASSWORD', 'R0adrunner');
+define('CONNECTION', 'sql1.njit.edu');
 
-class dbConn{
+class dbConn
+{
 
-	protected static $db;
+    protected static $db;
 
-	private function __construct(){
+    private function __construct()
+    {
 
-		try{
-			self::$db= new PDO('mysql:host=' . CONNECTION .';dbname=' . DATABASE, USERNAME, PASSWORD );
-			self::$db->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
-			echo "<b>Connected Succesfully </b><br>";
+        try {
+            self::$db = new PDO('mysql:host=' . CONNECTION . ';dbname=' . DATABASE, USERNAME, PASSWORD);
+            self::$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            echo "<b> Database Connection Succesful </b><br>";
 
-		}
+        } catch (PDOException $e) {
+            echo "Connection Error: " . $e->getMessage();
 
-		catch (PDOException $e){
-			echo "Connection Error: " . $e->getMessage();
+        }
+    }
 
-		}
-	}
+    public static function getConnection()
+    {
 
-	public static function getConnection(){
+        if (!self::$db) {
+            new dbConn();
+        }
+        return self::$db;
 
-		if(!self::$db){
-			new dbConn();
-		}
-		return self::$db;
-
-	}
+    }
 }
 
-abstract class collection{
+abstract class collection
+{
 
-	public static $record;
-
-	
-		public static function getRecordSet(){
-		$db = dbConn::getConnection();
-		$tableName = get_called_class();
-		$sql = "SELECT * from ". $tableName;
-		$statement = $db->prepare ($sql);
-		$statement->execute();
-		$class = static::$modelName;
-		$statement->setFetchMode(PDO::FETCH_CLASS, $class);
-        $recordSet =  $statement->fetchAll();
-        //print_r($recordSet);
+    public static function getRecordSet()
+    {
+        $db        = dbConn::getConnection();
+        $tableName = get_called_class();
+        $sql       = "SELECT * from " . $tableName;
+        $statement = $db->prepare($sql);
+        $statement->execute();
+        $class = static::$modelName;
+        $statement->setFetchMode(PDO::FETCH_CLASS, $class);
+        $recordSet = $statement->fetchAll();
         return $recordSet;
-	}
+    }
 
-
-   
-    	public static function getOneRecord($id){
-		$db = dbConn::getConnection();
-		$tableName = get_called_class();
-		$sql = "SELECT * from ". $tableName . " WHERE id = $id";
-		$statement = $db->prepare ($sql);
-		$statement->execute();
-		$class = static::$modelName;
-		$statement->setFetchMode(PDO::FETCH_CLASS, $class);
-        $record =  $statement->fetchAll();
+    public static function getOneRecord($id)
+    {
+        $db        = dbConn::getConnection();
+        $tableName = get_called_class();
+        $sql       = "SELECT * from " . $tableName . " WHERE id = $id";
+        $statement = $db->prepare($sql);
+        $statement->execute();
+        $class = static::$modelName;
+        $statement->setFetchMode(PDO::FETCH_CLASS, $class);
+        $record = $statement->fetchAll();
         return $record;
-	}
+    }
 }
 
-
-class accounts extends collection {
+class accounts extends collection
+{
     protected static $modelName = 'account';
 }
 
-class todos extends collection {
+class todos extends collection
+{
     protected static $modelName = 'todo';
 }
 
+abstract class model
+{
 
-abstract class model {
+    protected $tableName;
+    protected static $statement;
 
-	protected $tableName;
-	protected static $statement;
-    
     public function save()
-   		 {
-		$array = get_object_vars($this);
-    	unset($array["tableName"]);
-    		     
+    {
+        $array = get_object_vars($this);
+        unset($array["tableName"]);
+
         if ($this->id == '') {
 
-            // echo "Call Insert Method <br>";
             $sql = $this->insert();
-            // echo " <br> Inserted record into table " . $this->tableName; 
         } else {
-             $sql = $this->update();
-              // echo "<br> Updated record in table " . $this->tableName ." with ID = " . $this->id;
+            $sql = $this->update();
 
         }
 
         $db = dbConn::getConnection();
         self::$statement = $db->prepare($sql);
-     
-        foreach ($array as $key=>$value)
-        {
-         if ($this->id == ''){
-           self::$statement->bindValue(":$key","$value");
-         }
-         else {
-            if ($value != '' && $key != "id"){
-                self::$statement->bindValue(":$key","$value");
+
+        foreach ($array as $key => $value) {
+            if ($this->id == '') {
+                self::$statement->bindValue(":$key", "$value");
+            } else {
+                if ($value != '' && $key != "id") {
+                    self::$statement->bindValue(":$key", "$value");
+                }
             }
-         }
         }
 
-         self::$statement->execute();
-        
-         $lastId = $db->lastInsertId();
-         return ($lastId);
-    
+        self::$statement->execute();
+
+        $lastId = $db->lastInsertId();
+        return ($lastId);
+
     }
 
     public function insert()
-    {   $array = get_object_vars($this);
-    
-       unset($array["tableName"]);
-        
- 	   $columnString = implode(',', array_keys($array));
- 	   $valueString = ":".implode(',:', array_keys($array));
-       $sql = "INSERT INTO $this->tableName (" . $columnString . ") VALUES (" . $valueString . ")";
-       print_r($sql);
-       return $sql;		
-       
-    	}	
-
-
-     public function update()
     {
-      $array = get_object_vars($this);
-    
-       unset($array["tableName"]);
+        $array = get_object_vars($this);
 
-       $sql = "UPDATE ". $this->tableName ." SET";
-       foreach ($array as $key => $value){
-        if ($value != "" & $key != "id")
-        {
+        unset($array["tableName"]);
 
-        $sql.= " " .$key ." = :$key ,";
-        //$values[":$key"] = $value;
-       }
- 
-       } 
+        $columnString = implode(',', array_keys($array));
+        $valueString  = ":" . implode(',:', array_keys($array));
+        $sql          = "INSERT INTO $this->tableName (" . $columnString . ") VALUES (" . $valueString . ")";
+        return $sql;
 
-       $sql = substr($sql,0,-1);
-
-       $sql.= " WHERE id = " .$this->id;
-
-       echo $sql;
-       return $sql; 
-       
     }
 
+    public function update()
+    {
+        $array = get_object_vars($this);
+
+        unset($array["tableName"]);
+
+        $sql = "UPDATE " . $this->tableName . " SET";
+        foreach ($array as $key => $value) {
+            if ($value != "" & $key != "id") {
+
+                $sql .= " " . $key . " = :$key ,";
+            }
+
+        }
+
+        $sql = substr($sql, 0, -1);
+
+        $sql .= " WHERE id = " . $this->id;
+        return $sql;
+
+    }
 
     public function delete()
-    
-    {    $array = get_object_vars($this);
-        $sql = "DELETE FROM " . $this->tableName . " WHERE id = " . $this->id;
-        //echo $sql;
-        $db = dbConn::getConnection();
+    {
+        $array           = get_object_vars($this);
+        $sql             = "DELETE FROM " . $this->tableName . " WHERE id = " . $this->id;
+        $db              = dbConn::getConnection();
         self::$statement = $db->prepare($sql);
         self::$statement->execute();
-       //echo "<br> <b> Record Deleted <b> <br>";
-
-       // return $sql;
     }
 
-
-     
 }
 
-
-class account extends model {
+class account extends model
+{
 
     public $id;
     public $email;
@@ -201,175 +183,225 @@ class account extends model {
 
 }
 
-
-class todo extends model {
+class todo extends model
+{
 
     public $id;
     public $owneremail;
     public $ownerid;
-    public $createdate;
+    public $createddate;
     public $duedate;
     public $message;
     public $isdone;
-    
+
     public function __construct()
     {
         $this->tableName = 'todos';
 
+    }
 }
-}
 
-class tableClass{
+class tableClass
+{
 
-	private static $table;
+    private static $table;
 
-    public static function getTable(){
+    public static function populateTable($rec)
+    {
+        self::$table = "";
+        if (count($rec) == 0) {
+            self::$table .= "<b> No records returned from table <b> <br>";
+        } else {
+
+            self::drawTable($rec);
+
+        }
         return self::$table;
+
     }
 
-	public static function populateTable ($rec){
-        self::$table ="";
-		if(count($rec) == 0){
-			self::$table.= "<b> No records returned from table <b> <br>";
-		}
-		else {
-          
-          self::drawTable($rec);
-          
-		}
-		//return $printTable;
+    private static function drawTable($rec)
+    {
 
-	}
+        self::$table .= '<table>';
+        self::$table .= '<tr>';
+        $headerFields = $rec[0];
+        foreach ($headerFields as $key => $value) {
+            self::$table .= "<th>$key</th>";
 
-	private static function drawTable($rec){
+        }
+        self::$table .= '</tr>';
+        foreach ($rec as $row) {
+            self::$table .= '<tr>';
 
-		self::$table.= '<table>';
-		self::$table.= '<tr>';
-		$headerFields = $rec[0];
-		foreach ($headerFields as $key => $value) {
-                self::$table .= "<th>$key</th>";
+            foreach ($row as $key => $value) {
+                self::$table .= "<td>$value</td>";
 
             }
-        self::$table.= '</tr>';
-        foreach ($rec as $record){
-        	self::$table.= '<tr>';
-
-        	foreach($record as $key => $value){
-        		self::$table.= "<td>$value</td>";
-
-        	}
-        	self::$table .= '</tr>';
-
+            self::$table .= '</tr>';
 
         }
 
         self::$table .= '</table> <br>';
-        //return self::$table;
 
-	}
-	
+    }
+
 }
 
-class output{
-  public $header;
-  public $message;
-  public $table;  
+class output
+{
+    private $header;
+    private $message;
+    private $table;
 
-  public function printResults(){
-    echo "<h2> $this->header </h2>";
-    echo "$this->message <br>";
-    echo "$this->table";
-    echo ("<hr>");
-  }
+    public function printResults()
+    {
+        echo "<h2> $this->header </h2>";
+        echo "$this->message <br>";
+        echo "$this->table";
+        echo ("<hr>");
+    }
+    public function templateGenerator($action, $messageVar, $tableData)
+    {
+        $this->table = $tableData;
+        switch ($action) {
+            case 'INSERT':{
+                    $arrays        = get_object_vars($messageVar);
+                    $this->header  = "<h2>Insert New Record</h2>";
+                    $this->message = "Inserted New Record with Data: ";
+                    foreach ($arrays as $key => $value) {
+                        $this->message .= "$key = $value ";
+                    }
+                    break;
+                }
+            case 'UPDATE':{
+                    $this->header  = "<h2>Update Record</h2>";
+                    $this->message = "Update Record with Id: $messageVar";
+                    break;
+                }
+            case 'SELECTALL':{
+                    $this->header  = "<h2>Select All Records</h2>";
+                    $this->message = "Select ALL Records";
+                    break;
+
+                }
+            case 'SELECT':{
+
+                    $this->header  = "<h2>Select One Record</h2>";
+                    $this->message = "Select Record with Id: $messageVar";
+                    break;
+                }
+            case 'DELETE':{
+                    $this->header  = "<h2>Delete Record</h2>";
+                    $this->message = "Delete Record with Id: $messageVar";
+                }
+            default:
+
+                break;
+        }
+
+    }
 }
-
+echo "<h1>'accounts' Table</h1>";
 $outputArray = array();
 
-$record= accounts::getRecordSet();
-tableClass::populateTable($record);
+$records   = accounts::getRecordSet();
 $outputVar = new output();
-$outputVar->header = "Select ALL records";
-$outputVar->message = "Select ALL records";
-$outputVar->table = tableClass::getTable();
-array_push($outputArray,$outputVar);
+$outputVar->templateGenerator("SELECTALL", $records, tableClass::populateTable($records));
+array_push($outputArray, $outputVar);
 
-$id = 11;
-$record = accounts::getOneRecord($id);
-tableClass::populateTable($record);
+$id        = 11;
+$record    = accounts::getOneRecord($id);
 $outputVar = new output();
-$outputVar->header = "Select One Record";
-$outputVar->message = "Select record with id: $id";
-$outputVar->table = tableClass::getTable();
-array_push($outputArray,$outputVar);
+$outputVar->templateGenerator('SELECT', $id, tableClass::populateTable($record));
+array_push($outputArray, $outputVar);
 
-$newRec = new account();
-$newRec->email="vkv@gmail.com";
-$newRec->fname="James";
-$newRec->lname="Bond";
-$newRec->phone='007';
-$newRec->birthday='01011955';
-$newRec->gender='male';
-$newRec->password='001';
-$newID = $newRec->save();
+$newAccount           = new account();
+$newAccount->email    = "janedoe121@gmail.com";+
+$newAccount->fname    = "Jane";
+$newAccount->lname    = "Doe";
+$newAccount->phone    = '007008';
+$newAccount->birthday = '19500101';
+$newAccount->gender   = 'female';
+$newAccount->password = '001002';
+$newID                = $newAccount->save();
 
-$record= accounts::getRecordSet();
-tableClass::populateTable($record);
-$outputVar = new output();
-$outputVar->header = "Insert New Record ";
-$outputVar->message = "New Record data Email = $newRec->email, fname = $newRec->fname lname= $newRec->lname phone = $newRec->phone birthday = $newRec->birthday gender = $newRec->gender password = $newRec->password ";
-$outputVar->table = tableClass::getTable();
-array_push($outputArray,$outputVar);
+$insertedAccounts = accounts::getRecordSet();
+$outputVar        = new output();
 
- $updateRec = new account();
- $updateRec->id = $newID;
- $updateRec->email="bond007@gmail.com";
- $updateId = $updateRec->save();
+$outputVar->templateGenerator("INSERT", $newAccount, tableClass::populateTable($insertedAccounts));
+array_push($outputArray, $outputVar);
 
- $record= accounts::getRecordSet();
-tableClass::populateTable($record);
-$outputVar = new output();
-$outputVar->header = "Update Record ";
-$outputVar->message = "Updated record with id = $upateID";
-$outputVar->table = tableClass::getTable();
-array_push($outputArray,$outputVar);
+$updateAccount        = new account();
+$updateAccount->id    = $newID;
+$updateAccount->email = "doe007@gmail.com";
+$updateAccount->save();
 
-$deleteRec = new account();
-$deleteRec->id = $newID;
-$deleteId = $deleteRec->delete();
+$updatedAccounts = accounts::getRecordSet();
+$outputVar       = new output();
+$outputVar->templateGenerator("UPDATE", $newID, tableClass::populateTable($updatedAccounts));
+array_push($outputArray, $outputVar);
 
-$record= accounts::getRecordSet();
-tableClass::populateTable($record);
-$outputVar = new output();
-$outputVar->header = "Delete Record ";
-$outputVar->message = "Deleted record with id = $newID";
-$outputVar->table = tableClass::getTable();
-array_push($outputArray,$outputVar);
+$deleteAccount     = new account();
+$deleteAccount->id = $newID;
+$deleteAccount->delete();
 
+$deletedAccounts = accounts::getRecordSet();
+$outputVar       = new output();
+$outputVar->templateGenerator("DELETE", $newID, tableClass::populateTable($deletedAccounts));
+array_push($outputArray, $outputVar);
 
-
-
-foreach($outputArray as $output){
+foreach ($outputArray as $output) {
     $output->printResults();
 }
+$outputArray = array();
+echo "<h1>'todos' Table</h1>";
 
-// print_r($outputArray);
-//$outputVar->printResults();
+$todoRecords = todos::getRecordSet();
+$outputVar   = new output();
+$outputVar->templateGenerator("SELECTALL", $todoRecords, tableClass::populateTable($todoRecords));
+array_push($outputArray, $outputVar);
 
+$id         = 4;
+$todoRecord = todos::getOneRecord($id);
+$outputVar  = new output();
+$outputVar->templateGenerator('SELECT', $id, tableClass::populateTable($todoRecord));
+array_push($outputArray, $outputVar);
 
-// $record = accounts::getOneRecord(114);
-// tableClass::populateTable($record);
-// $record= todos::getRecordSet();
-// tableClass::populateTable($record);
-// $record= todos::getOneRecord(5);
-// tableClass::populateTable($record);
-// echo (tableClass::getTable());
+$newTodo              = new todo();
+$newTodo->owneremail  = "janedoe121@gmail.com";+
+$newTodo->ownerid     = "02";
+$newTodo->createddate = "2017-11-20";
+$newTodo->duedate     = "2017-12-20";
+$newTodo->message     = 'Record inserted';
+$newTodo->isdone      = '0';
+$newTodoId            = $newTodo->save();
 
+$insertedTodos = todos::getRecordSet();
+$outputVar     = new output();
+$outputVar->templateGenerator("INSERT", $newTodo, tableClass::populateTable($insertedTodos));
+array_push($outputArray, $outputVar);
 
- 
- 
- $deleteRec = new account();
- $deleteRec->id = $newID;
- $deleteId = $deleteRec->delete();
+$updateTodo          = new todo();
+$updateTodo->id      = $newTodoId;
+$updateTodo->message = "Record updated";
+$updateTodo->isdone  = '1';
+$updateTodo->save();
 
+$updatedTodos = todos::getRecordSet();
+$outputVar    = new output();
+$outputVar->templateGenerator("UPDATE", $newTodoId, tableClass::populateTable($updatedTodos));
+array_push($outputArray, $outputVar);
 
-?>
+$deleteTodo     = new todo();
+$deleteTodo->id = $newTodoId;
+$deleteTodo->delete();
+
+$deletedTodos = todos::getRecordSet();
+$outputVar    = new output();
+$outputVar->templateGenerator("DELETE", $newTodoId, tableClass::populateTable($deletedTodos));
+array_push($outputArray, $outputVar);
+
+foreach ($outputArray as $output) {
+    $output->printResults();
+}
