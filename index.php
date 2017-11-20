@@ -319,7 +319,9 @@ class output
                     $this->header  = "<h2>Insert New Record</h2>";
                     $this->message = "Inserted New Record with Data: ";
                     foreach ($arrays as $key => $value) {
+                        if($key!= "id"){
                         $this->message .= "$key = $value ";
+                     }
                     }
                     break;
                 }
